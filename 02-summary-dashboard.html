@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GR Project Board — Summary</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f3ef; --surface: #ffffff; --border: rgba(0,0,0,0.07);
+    --text: #1a1a1a; --muted: #888;
+    --font: 'DM Sans', sans-serif; --mono: 'DM Mono', monospace;
+    --green: #16a34a; --red: #dc2626; --amber: #d97706; --r: 12px;
+  }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+  .header { background: #1a1a1a; color: #fff; padding: 20px 24px 18px; display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.4px; }
+  .header p { font-size: 12px; color: rgba(255,255,255,0.45); font-family: var(--mono); margin-top: 3px; }
+  .header-right { font-size: 11px; color: rgba(255,255,255,0.4); font-family: var(--mono); text-align: right; }
+  .live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #4ade80; margin-right: 5px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .main { padding: 20px 20px 32px; display: flex; flex-direction: column; gap: 18px; max-width: 1100px; margin: 0 auto; }
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .stat-card { background: var(--surface); border-radius: var(--r); border: 1px solid var(--border); padding: 14px 16px; }
+  .stat-label { font-size: 10px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-bottom: 6px; }
+  .stat-num { font-size: 28px; font-weight: 600; letter-spacing: -1px; line-height: 1; }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .progress-track { height: 4px; background: #e5e7eb; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 2px; }
+  .section-label { font-size: 10px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 10px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .panel { background: var(--surface); border-radius: var(--r); border: 1px solid var(--border); padding: 16px; }
+  .bar-chart { display: flex; flex-direction: column; gap: 9px; }
+  .bar-row { display: flex; align-items: center; gap: 10px; }
+  .bar-key { font-size: 11px; width: 110px; flex-shrink: 0; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { flex: 1; height: 8px; background: #f0ede8; border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; }
+  .bar-val { font-size: 11px; font-family: var(--mono); color: var(--muted); min-width: 36px; text-align: right; }
+  .stacked-row { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 2px; margin-bottom: 12px; }
+  .stacked-seg { height: 100%; border-radius: 5px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .owner-table { width: 100%; border-collapse: collapse; }
+  .owner-table th { font-size: 10px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); text-align: left; padding: 0 0 8px; font-weight: 500; }
+  .owner-table th:not(:first-child) { text-align: center; }
+  .owner-table td { font-size: 12px; padding: 7px 0; border-top: 1px solid var(--border); vertical-align: middle; }
+  .owner-table td:not(:first-child) { text-align: center; }
+  .owner-cell { display: flex; align-items: center; gap: 7px; }
+  .avatar { width: 22px; height: 22px; border-radius: 50%; font-size: 9px; font-weight: 600; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .pill { display: inline-block; font-size: 10px; font-family: var(--mono); font-weight: 500; padding: 2px 7px; border-radius: 4px; }
+  .pill-done { background: #dcfce7; color: #166534; }
+  .pill-blocked { background: #fee2e2; color: #991b1b; }
+  .pill-open { background: #f1f5f9; color: #475569; }
+  .mom-chart { display: flex; align-items: flex-end; gap: 8px; height: 80px; padding-top: 4px; }
+  .mom-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .mom-bars { display: flex; align-items: flex-end; gap: 2px; width: 100%; justify-content: center; }
+  .mom-bar { width: 14px; border-radius: 3px 3px 0 0; }
+  .mom-label { font-size: 10px; font-family: var(--mono); color: var(--muted); }
+  .blocked-list { display: flex; flex-direction: column; gap: 7px; }
+  .blocked-item { display: flex; align-items: flex-start; gap: 8px; padding: 9px 10px; background: #fff5f5; border-radius: 8px; border: 1px solid #fecaca; }
+  .blocked-title { font-size: 12px; font-weight: 500; line-height: 1.3; }
+  .blocked-meta { font-size: 10px; color: var(--muted); font-family: var(--mono); margin-top: 2px; }
+  .week-list { display: flex; flex-direction: column; gap: 6px; }
+  .week-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 12px; }
+  .week-item .due-tag { font-family: var(--mono); font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #f1f5f9; color: #475569; }
+  .week-item .due-tag.overdue { background: #fee2e2; color: #991b1b; }
+  .refresh-note { text-align: center; font-size: 11px; color: var(--muted); font-family: var(--mono); padding-top: 4px; }
+  .config-banner { background: #fffbeb; border: 1px solid #fde68a; padding: 14px 18px; border-radius: 10px; margin: 20px; font-size: 12px; color: #92400e; line-height: 1.6; font-family: var(--mono); }
+  .config-banner code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 3px; }
+  .error-msg { padding: 60px 20px; text-align: center; color: #991b1b; font-size: 13px; }
+  .error-msg b { display: block; font-size: 14px; margin-bottom: 8px; color: var(--text); }
+  @media(max-width:600px){
+    .stat-row { grid-template-columns: 1fr 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Gordon Ramsay Group — Project Board</h1>
+    <p>Cross-departmental tracker · live summary</p>
+  </div>
+  <div class="header-right">
+    <span class="live-dot"></span>Live · refreshes on load<br>
+    <span id="timestamp"></span>
+  </div>
+</div>
+
+<div id="dashboard-content">
+  <div class="refresh-note" style="padding:60px 20px">Loading data…</div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+//  CONFIG — replace SHEET_CSV_URL with your published-to-web CSV link
+//  (File → Share → Publish to web → Tasks tab → CSV → Publish)
+//  Optional: SNAPSHOTS_CSV_URL for the Monthly Snapshots tab (separate publish)
+// ════════════════════════════════════════════════════════════════════════════
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTqNezK1qNz3SqTghsgtni9lKOe1pqQOl4fxev_2ZA1zJpg5Jga08F8pkreNJIC7Q/pub?gid=1665123087&single=true&output=csv';
+const SNAPSHOTS_CSV_URL = '';  // optional - leave blank to skip historical view
+// ════════════════════════════════════════════════════════════════════════════
+
+const AC = ['#7c3aed','#db2777','#0891b2','#059669','#d97706','#dc2626','#4f46e5'];
+function avc(n){ let h=0; for(let c of (n||'')) h+=c.charCodeAt(0); return AC[h%AC.length]; }
+function ini(n){ if(!n) return '??'; return n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
+
+function parseCSV(text) {
+  const rows = [];
+  let i = 0, field = '', row = [], inQuotes = false;
+  while (i < text.length) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"' && text[i+1] === '"') { field += '"'; i += 2; continue; }
+      if (c === '"') { inQuotes = false; i++; continue; }
+      field += c; i++; continue;
+    }
+    if (c === '"') { inQuotes = true; i++; continue; }
+    if (c === ',') { row.push(field); field = ''; i++; continue; }
+    if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i+1] === '\n') i++;
+      row.push(field); rows.push(row); field = ''; row = []; i++; continue;
+    }
+    field += c; i++;
+  }
+  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+function rowsToTasks(rows) {
+  if (rows.length < 2) return [];
+  const headers = rows[0].map(h => h.trim());
+  const idx = (name) => headers.findIndex(h => h.toLowerCase() === name.toLowerCase());
+  const I = {
+    id: idx('ID'), title: idx('Title'), dept: idx('Department'),
+    workstream: idx('Workstream'), owner: idx('Owner'), priority: idx('Priority'),
+    size: idx('Size'), status: idx('Status'), due: idx('Due Date'),
+    updated: idx('Last Updated'),
+  };
+  return rows.slice(1)
+    .filter(r => r[I.title] && r[I.title].trim())
+    .map(r => ({
+      id:         I.id        >= 0 ? r[I.id]        : '',
+      title:      I.title     >= 0 ? r[I.title]     : '',
+      dept:       I.dept      >= 0 ? r[I.dept]      : '',
+      workstream: I.workstream>= 0 ? r[I.workstream]: '',
+      owner:      I.owner     >= 0 ? r[I.owner]     : 'Unassigned',
+      priority:   I.priority  >= 0 ? r[I.priority]  : '',
+      status:     I.status    >= 0 ? r[I.status]    : 'To do',
+      due:        I.due       >= 0 ? r[I.due]       : '',
+      updated:    I.updated   >= 0 ? r[I.updated]   : '',
+    }));
+}
+
+function isOverdue(due, status){
+  if (!due || status === 'Done') return false;
+  const d = new Date(due); if (isNaN(d)) return false;
+  return d < new Date(new Date().setHours(0,0,0,0));
+}
+function isThisWeek(due, status){
+  if (!due || status === 'Done') return false;
+  const d = new Date(due); if (isNaN(d)) return false;
+  const now = new Date(); now.setHours(0,0,0,0);
+  const diff = Math.round((d - now) / (1000*60*60*24));
+  return diff >= 0 && diff <= 7;
+}
+function formatDate(due){
+  const d = new Date(due); if (isNaN(d)) return due;
+  const now = new Date(); now.setHours(0,0,0,0);
+  const diff = Math.round((d - now) / (1000*60*60*24));
+  if (diff < 0) return `${Math.abs(diff)}d overdue`;
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Tomorrow';
+  if (diff <= 7) return `In ${diff}d`;
+  return d.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
+}
+
+function buildDashboard(TASKS, SNAPSHOTS) {
+  const total = TASKS.length;
+  const done = TASKS.filter(t => t.status === 'Done').length;
+  const blocked = TASKS.filter(t => t.status === 'Blocked').length;
+  const od = TASKS.filter(t => isOverdue(t.due, t.status)).length;
+  const pct = total ? Math.round(done/total*100) : 0;
+
+  const SC = {
+    'Done':        { color:'#22c55e' },
+    'In progress': { color:'#3b82f6' },
+    'To do':       { color:'#d1d5db' },
+    'Blocked':     { color:'#ef4444' },
+  };
+  const scnt = {}; Object.keys(SC).forEach(s => scnt[s] = TASKS.filter(t => t.status === s).length);
+
+  const depts = [...new Set(TASKS.map(t => t.dept).filter(Boolean))].sort();
+  const maxD = Math.max(1, ...depts.map(d => TASKS.filter(t => t.dept === d).length));
+
+  const owners = [...new Set(TASKS.map(t => t.owner).filter(Boolean))].sort();
+
+  const flagged = TASKS.filter(t => t.status === 'Blocked' || isOverdue(t.due, t.status));
+  const thisWeek = TASKS.filter(t => isThisWeek(t.due, t.status));
+
+  const priorities = ['High','Medium','Low'];
+  const pcs = { High:'#fca5a5', Medium:'#fcd34d', Low:'#86efac' };
+  const maxP = Math.max(1, ...priorities.map(p => TASKS.filter(t => t.priority === p).length));
+
+  // Month-on-month: from snapshots if provided, else compute from updated/done dates
+  let momHTML;
+  if (SNAPSHOTS && SNAPSHOTS.length > 0) {
+    const recent = SNAPSHOTS.slice(-6);
+    const maxM = Math.max(1, ...recent.map(s => parseInt(s.completed) || 0));
+    momHTML = recent.map(s => `
+      <div class="mom-col">
+        <div class="mom-bars">
+          <div class="mom-bar" style="height:${Math.round(((parseInt(s.completed)||0)/maxM)*64)+4}px;background:#4ade80"></div>
+        </div>
+        <span class="mom-label">${s.month}</span>
+      </div>`).join('');
+  } else {
+    // Approximate: count Done tasks by month of Last Updated
+    const monthCounts = {};
+    TASKS.filter(t => t.status === 'Done' && t.updated).forEach(t => {
+      const d = new Date(t.updated);
+      if (!isNaN(d)) {
+        const k = d.toLocaleDateString('en-GB', { month:'short' });
+        monthCounts[k] = (monthCounts[k] || 0) + 1;
+      }
+    });
+    const months = Object.keys(monthCounts).slice(-6);
+    if (months.length === 0) {
+      momHTML = '<div style="font-size:11px;color:var(--muted);padding:20px 0;text-align:center">Complete some tasks to see month-on-month trend</div>';
+    } else {
+      const maxM = Math.max(1, ...Object.values(monthCounts));
+      momHTML = months.map(m => `
+        <div class="mom-col">
+          <div class="mom-bars">
+            <div class="mom-bar" style="height:${Math.round((monthCounts[m]/maxM)*64)+4}px;background:#4ade80"></div>
+          </div>
+          <span class="mom-label">${m}</span>
+        </div>`).join('');
+    }
+  }
+
+  document.getElementById('dashboard-content').innerHTML = `
+    <div class="main">
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-label">Total tasks</div>
+          <div class="stat-num">${total}</div>
+          <div class="stat-sub">across all workstreams</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Completed</div>
+          <div class="stat-num" style="color:var(--green)">${done}</div>
+          <div class="progress-track"><div class="progress-fill" style="width:${pct}%;background:var(--green)"></div></div>
+          <div class="stat-sub" style="margin-top:6px">${pct}% overall</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Blocked</div>
+          <div class="stat-num" style="color:var(--red)">${blocked}</div>
+          <div class="stat-sub">${blocked > 0 ? '<b style="color:var(--red)">Needs attention</b>' : 'All clear'}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Overdue</div>
+          <div class="stat-num" style="color:var(--amber)">${od}</div>
+          <div class="stat-sub">${od > 0 ? '<b style="color:var(--amber)">Past due date</b>' : 'All on track'}</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="panel">
+          <div class="section-label">Status breakdown</div>
+          <div class="stacked-row">
+            ${Object.entries(SC).map(([s,c]) => `<div class="stacked-seg" style="flex:${scnt[s]||0};background:${c.color};min-width:${scnt[s]?'4px':'0'}"></div>`).join('')}
+          </div>
+          <div class="legend">
+            ${Object.entries(SC).map(([s,c]) => `<div class="legend-item"><div class="legend-dot" style="background:${c.color}"></div>${s}: <b>${scnt[s]||0}</b></div>`).join('')}
+          </div>
+          <div class="section-label" style="margin-top:18px">By department</div>
+          <div class="bar-chart">
+            ${depts.map(d => {
+              const n = TASKS.filter(t => t.dept === d).length;
+              const dn = TASKS.filter(t => t.dept === d && t.status === 'Done').length;
+              return `<div class="bar-row"><span class="bar-key">${d}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/maxD*100)}%;background:#c7b8f5"></div></div><span class="bar-val">${dn}/${n}</span></div>`;
+            }).join('') || '<div style="font-size:11px;color:var(--muted)">No departments yet</div>'}
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="section-label">Month-on-month completed</div>
+          <div class="mom-chart">${momHTML}</div>
+          <div class="section-label" style="margin-top:18px">Priority split</div>
+          <div class="bar-chart">
+            ${priorities.map(p => {
+              const n = TASKS.filter(t => t.priority === p).length;
+              return `<div class="bar-row"><span class="bar-key">${p}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/maxP*100)}%;background:${pcs[p]}"></div></div><span class="bar-val">${n}</span></div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="section-label">Due in the next 7 days</div>
+        <div class="week-list">
+          ${thisWeek.length ? thisWeek.sort((a,b) => new Date(a.due) - new Date(b.due)).map(t => `
+            <div class="week-item">
+              <div class="avatar" style="background:${avc(t.owner)};width:18px;height:18px;font-size:8px">${ini(t.owner)}</div>
+              <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.title}</span>
+              <span class="due-tag${isOverdue(t.due,t.status)?' overdue':''}">${formatDate(t.due)}</span>
+            </div>`).join('') : '<div style="font-size:12px;color:var(--muted);padding:8px 0">Nothing due this week 🌴</div>'}
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="section-label">Owner workload</div>
+        <table class="owner-table">
+          <thead><tr><th>Owner</th><th>Open</th><th>Done</th><th>Blocked</th></tr></thead>
+          <tbody>${owners.map(o => {
+            const ot = TASKS.filter(t => t.owner === o);
+            const odn = ot.filter(t => t.status === 'Done').length;
+            const ob = ot.filter(t => t.status === 'Blocked').length;
+            const oo = ot.filter(t => t.status !== 'Done').length;
+            return `<tr><td><div class="owner-cell"><div class="avatar" style="background:${avc(o)}">${ini(o)}</div>${o}</div></td><td><span class="pill pill-open">${oo}</span></td><td><span class="pill pill-done">${odn}</span></td><td><span class="pill ${ob>0?'pill-blocked':'pill-open'}">${ob}</span></td></tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>
+
+      <div>
+        <div class="section-label">Blocked &amp; overdue</div>
+        <div class="blocked-list">
+          ${flagged.length ? flagged.map(t => `
+            <div class="blocked-item">
+              <span style="font-size:12px;margin-top:1px">${t.status==='Blocked'?'🔴':'🟡'}</span>
+              <div>
+                <div class="blocked-title">${t.title}</div>
+                <div class="blocked-meta">${t.dept} · ${t.owner} · ${t.status==='Blocked'?'Blocked':'Overdue: '+t.due}</div>
+              </div>
+            </div>`).join('') : '<div style="font-size:13px;color:var(--muted);padding:8px 0">No blocked or overdue tasks 🎉</div>'}
+        </div>
+      </div>
+
+      <div class="refresh-note">Data sourced from Google Sheets · auto-refreshes on every page load</div>
+    </div>`;
+
+  document.getElementById('timestamp').textContent = 'Last loaded: ' + new Date().toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+}
+
+async function load() {
+  if (SHEET_CSV_URL.includes('YOUR_PUBLISHED_CSV_URL_HERE')) {
+    document.getElementById('dashboard-content').innerHTML = `
+      <div class="config-banner">
+        <b>⚙️ Setup needed</b><br><br>
+        Edit this HTML file and replace <code>YOUR_PUBLISHED_CSV_URL_HERE</code> at the top of the &lt;script&gt; block with your published Google Sheet CSV URL.<br><br>
+        See SETUP-GUIDE.md for full instructions.
+      </div>`;
+    return;
+  }
+  try {
+    const res = await fetch(SHEET_CSV_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    const tasks = rowsToTasks(parseCSV(text));
+
+    let snapshots = null;
+    if (SNAPSHOTS_CSV_URL && !SNAPSHOTS_CSV_URL.includes('YOUR_')) {
+      try {
+        const sres = await fetch(SNAPSHOTS_CSV_URL);
+        if (sres.ok) {
+          const stext = await sres.text();
+          const srows = parseCSV(stext);
+          if (srows.length > 4) {
+            snapshots = srows.slice(4).filter(r => r[0] && r[0].trim()).map(r => ({
+              month: r[0], total: r[1], completed: r[2]
+            }));
+          }
+        }
+      } catch (e) { /* snapshots optional */ }
+    }
+
+    buildDashboard(tasks, snapshots);
+  } catch (err) {
+    document.getElementById('dashboard-content').innerHTML = `
+      <div class="error-msg">
+        <b>Couldn't load tasks</b>
+        ${err.message}<br><br>
+        Check that the sheet is published to web and the URL is correct.
+      </div>`;
+  }
+}
+
+load();
+</script>
+</body>
+</html>

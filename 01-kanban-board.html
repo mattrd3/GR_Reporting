@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GR Project Board — Kanban</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f3ef; --surface: #ffffff; --border: rgba(0,0,0,0.08);
+    --text: #1a1a1a; --muted: #888;
+    --font: 'DM Sans', sans-serif; --mono: 'DM Mono', monospace;
+    --col-todo: #e8e4dc; --col-inprog: #dde8f5; --col-blocked: #f5e4e4; --col-done: #dff0e8;
+    --r: 10px; --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .toolbar {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 12px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .toolbar-title { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; margin-right: auto; }
+  .filter-group { display: flex; gap: 6px; align-items: center; }
+  .filter-label { font-size: 11px; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.5px; }
+  select { font-family: var(--font); font-size: 12px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); cursor: pointer; outline: none; }
+  select:focus { border-color: #aaa; }
+
+  .stats-bar {
+    display: flex; gap: 18px; padding: 10px 20px; background: var(--surface);
+    border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .stat { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .stat b { font-weight: 600; color: var(--text); font-family: var(--mono); }
+
+  .board { display: flex; gap: 14px; padding: 16px; overflow-x: auto; min-height: calc(100vh - 130px); align-items: flex-start; }
+  .column { flex: 0 0 260px; display: flex; flex-direction: column; gap: 8px; }
+  .col-header { display: flex; align-items: center; gap: 8px; padding: 8px 4px 4px; }
+  .col-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .col-name { font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; font-family: var(--mono); }
+  .col-count { margin-left: auto; font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .col-body { display: flex; flex-direction: column; gap: 8px; min-height: 80px; border-radius: var(--r); padding: 4px; }
+
+  .card { background: var(--surface); border-radius: var(--r); border: 1px solid var(--border); padding: 12px; transition: box-shadow 0.15s, transform 0.1s; user-select: none; }
+  .card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+  .card-top { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 8px; }
+  .card-title { font-size: 13px; font-weight: 500; line-height: 1.4; flex: 1; }
+  .priority-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .id-tag { font-size: 10px; font-family: var(--mono); color: var(--muted); margin-right: 4px; }
+  .card-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+  .tag { font-size: 10px; font-family: var(--mono); padding: 2px 7px; border-radius: 4px; font-weight: 500; }
+  .tag-it   { background: #dbeafe; color: #1e40af; }
+  .tag-mkt  { background: #fce7f3; color: #9d174d; }
+  .tag-ops  { background: #dcfce7; color: #166534; }
+  .tag-fin  { background: #fef3c7; color: #92400e; }
+  .tag-hr   { background: #f3f4f6; color: #374151; }
+  .tag-default { background: #ede9fe; color: #5b21b6; }
+  .tag-size { background: #f1f5f9; color: #475569; }
+  .tag-ws   { background: #fef9c3; color: #854d0e; }
+  .card-footer { display: flex; align-items: center; justify-content: space-between; }
+  .owner { display: flex; align-items: center; gap: 5px; }
+  .avatar { width: 20px; height: 20px; border-radius: 50%; font-size: 9px; font-weight: 600; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
+  .owner-name { font-size: 11px; color: var(--muted); }
+  .due { font-size: 10px; font-family: var(--mono); color: var(--muted); }
+  .due.overdue { color: #dc2626; font-weight: 500; }
+  .blocked-by { font-size: 10px; color: #991b1b; margin-top: 4px; padding: 3px 6px; background: #fee2e2; border-radius: 4px; display: inline-block; }
+  .notes-snippet { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.4; max-height: 36px; overflow: hidden; }
+
+  .loading, .error-msg { padding: 60px 20px; text-align: center; color: var(--muted); font-size: 13px; }
+  .error-msg { color: #991b1b; }
+  .error-msg b { display: block; font-size: 14px; margin-bottom: 8px; color: var(--text); }
+  .error-msg code { font-family: var(--mono); background: #f1f5f9; padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+
+  .config-banner { background: #fffbeb; border: 1px solid #fde68a; padding: 12px 16px; border-radius: 8px; margin: 12px 16px; font-size: 12px; color: #92400e; line-height: 1.6; font-family: var(--mono); }
+  .config-banner code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 3px; }
+
+  .footer-link { text-align: center; padding: 16px; font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .footer-link a { color: #2563eb; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="toolbar-title">GR Project Board · Kanban</span>
+  <div class="filter-group">
+    <span class="filter-label">Dept</span>
+    <select id="filter-dept" onchange="applyFilters()"><option value="">All</option></select>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Workstream</span>
+    <select id="filter-workstream" onchange="applyFilters()"><option value="">All</option></select>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Owner</span>
+    <select id="filter-owner" onchange="applyFilters()"><option value="">All</option></select>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">View</span>
+    <select id="filter-view" onchange="applyFilters()">
+      <option value="">All tasks</option>
+      <option value="week">Due this week</option>
+      <option value="overdue">Overdue only</option>
+      <option value="recent">Recently updated</option>
+    </select>
+  </div>
+</div>
+
+<div class="stats-bar" id="stats-bar"></div>
+<div id="board-container"><div class="loading">Loading tasks…</div></div>
+
+<div class="footer-link">
+  Live data from <a id="sheet-link" href="#" target="_blank">Google Sheet</a> · refreshed on page load
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+//  CONFIG — replace SHEET_CSV_URL with your published-to-web CSV link
+//  (File → Share → Publish to web → Tasks tab → CSV → Publish)
+// ════════════════════════════════════════════════════════════════════════════
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTqNezK1qNz3SqTghsgtni9lKOe1pqQOl4fxev_2ZA1zJpg5Jga08F8pkreNJIC7Q/pub?gid=1665123087&single=true&output=csv';
+const SHEET_VIEW_URL = 'YOUR_SHEET_VIEW_URL_HERE';  // optional - link in footer
+// ════════════════════════════════════════════════════════════════════════════
+
+const COLS = [
+  { id: 'To do',       label: 'To do',       dot: '#c0b9a8', bg: 'var(--col-todo)' },
+  { id: 'In progress', label: 'In progress', dot: '#3b82f6', bg: 'var(--col-inprog)' },
+  { id: 'Blocked',     label: 'Blocked',     dot: '#ef4444', bg: 'var(--col-blocked)' },
+  { id: 'Done',        label: 'Done',        dot: '#22c55e', bg: 'var(--col-done)' },
+];
+const PRIORITY_COLORS = { High: '#ef4444', Medium: '#f59e0b', Low: '#94a3b8' };
+const DEPT_TAGS = { IT: 'tag-it', Marketing: 'tag-mkt', Operations: 'tag-ops', Finance: 'tag-fin', HR: 'tag-hr' };
+const AVATAR_COLORS = ['#7c3aed','#db2777','#0891b2','#059669','#d97706','#dc2626','#4f46e5'];
+
+let allTasks = [];
+let activeFilters = { dept: '', workstream: '', owner: '', view: '' };
+
+function avatarColor(name) {
+  let h = 0; for (let c of (name||'')) h += c.charCodeAt(0);
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+function initials(name) {
+  if (!name) return '??';
+  return name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+}
+function parseCSV(text) {
+  const rows = [];
+  let i = 0, field = '', row = [], inQuotes = false;
+  while (i < text.length) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"' && text[i+1] === '"') { field += '"'; i += 2; continue; }
+      if (c === '"') { inQuotes = false; i++; continue; }
+      field += c; i++; continue;
+    }
+    if (c === '"') { inQuotes = true; i++; continue; }
+    if (c === ',') { row.push(field); field = ''; i++; continue; }
+    if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i+1] === '\n') i++;
+      row.push(field); rows.push(row); field = ''; row = []; i++; continue;
+    }
+    field += c; i++;
+  }
+  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+  return rows;
+}
+function rowsToTasks(rows) {
+  if (rows.length < 2) return [];
+  const headers = rows[0].map(h => h.trim());
+  const idx = (name) => headers.findIndex(h => h.toLowerCase() === name.toLowerCase());
+  const I = {
+    id: idx('ID'), title: idx('Title'), dept: idx('Department'),
+    workstream: idx('Workstream'), owner: idx('Owner'), priority: idx('Priority'),
+    size: idx('Size'), status: idx('Status'), due: idx('Due Date'),
+    updated: idx('Last Updated'), blockedBy: idx('Blocked By (ID)'), notes: idx('Notes / Comments')
+  };
+  return rows.slice(1)
+    .filter(r => r[I.title] && r[I.title].trim())
+    .map(r => ({
+      id:         I.id        >= 0 ? r[I.id]        : '',
+      title:      I.title     >= 0 ? r[I.title]     : '',
+      dept:       I.dept      >= 0 ? r[I.dept]      : '',
+      workstream: I.workstream>= 0 ? r[I.workstream]: '',
+      owner:      I.owner     >= 0 ? r[I.owner]     : 'Unassigned',
+      priority:   I.priority  >= 0 ? r[I.priority]  : '',
+      size:       I.size      >= 0 ? r[I.size]      : '',
+      status:     I.status    >= 0 ? r[I.status]    : 'To do',
+      due:        I.due       >= 0 ? r[I.due]       : '',
+      updated:    I.updated   >= 0 ? r[I.updated]   : '',
+      blockedBy:  I.blockedBy >= 0 ? r[I.blockedBy] : '',
+      notes:      I.notes     >= 0 ? r[I.notes]     : '',
+    }));
+}
+
+function formatDue(due, status) {
+  if (!due) return null;
+  const d = new Date(due);
+  if (isNaN(d)) return null;
+  const now = new Date(); now.setHours(0,0,0,0);
+  const diff = Math.round((d - now) / (1000*60*60*24));
+  const isDone = status === 'Done';
+  if (!isDone && diff < 0)  return { text: `${Math.abs(diff)}d overdue`, overdue: true };
+  if (!isDone && diff === 0) return { text: 'Due today', overdue: true };
+  if (!isDone && diff <= 3)  return { text: `Due in ${diff}d`, overdue: true };
+  return { text: d.toLocaleDateString('en-GB', { day:'numeric', month:'short' }), overdue: false };
+}
+
+function isOverdue(due, status) {
+  if (!due || status === 'Done') return false;
+  const d = new Date(due);
+  if (isNaN(d)) return false;
+  return d < new Date(new Date().setHours(0,0,0,0));
+}
+
+function isThisWeek(due, status) {
+  if (!due || status === 'Done') return false;
+  const d = new Date(due);
+  if (isNaN(d)) return false;
+  const now = new Date(); now.setHours(0,0,0,0);
+  const diff = Math.round((d - now) / (1000*60*60*24));
+  return diff >= 0 && diff <= 7;
+}
+
+function isRecent(updated) {
+  if (!updated) return false;
+  const d = new Date(updated);
+  if (isNaN(d)) return false;
+  const now = new Date();
+  return (now - d) / (1000*60*60*24) <= 7;
+}
+
+function filteredTasks() {
+  return allTasks.filter(t => {
+    if (activeFilters.dept && t.dept !== activeFilters.dept) return false;
+    if (activeFilters.workstream && t.workstream !== activeFilters.workstream) return false;
+    if (activeFilters.owner && t.owner !== activeFilters.owner) return false;
+    if (activeFilters.view === 'overdue' && !isOverdue(t.due, t.status)) return false;
+    if (activeFilters.view === 'week' && !isThisWeek(t.due, t.status)) return false;
+    if (activeFilters.view === 'recent' && !isRecent(t.updated)) return false;
+    return true;
+  });
+}
+
+function populateFilters() {
+  const fill = (id, values) => {
+    const sel = document.getElementById(id);
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">All</option>' + values.sort().map(v => `<option>${v}</option>`).join('');
+    sel.value = cur;
+  };
+  fill('filter-dept', [...new Set(allTasks.map(t => t.dept).filter(Boolean))]);
+  fill('filter-workstream', [...new Set(allTasks.map(t => t.workstream).filter(Boolean))]);
+  fill('filter-owner', [...new Set(allTasks.map(t => t.owner).filter(Boolean))]);
+}
+
+function applyFilters() {
+  activeFilters.dept       = document.getElementById('filter-dept').value;
+  activeFilters.workstream = document.getElementById('filter-workstream').value;
+  activeFilters.owner      = document.getElementById('filter-owner').value;
+  activeFilters.view       = document.getElementById('filter-view').value;
+  renderBoard();
+}
+
+function renderBoard() {
+  const ft = filteredTasks();
+  const c = document.getElementById('board-container');
+  c.innerHTML = '';
+  const board = document.createElement('div');
+  board.className = 'board';
+  COLS.forEach(col => {
+    const colTasks = ft.filter(t => t.status === col.id);
+    const colEl = document.createElement('div');
+    colEl.className = 'column';
+    colEl.innerHTML = `
+      <div class="col-header">
+        <div class="col-dot" style="background:${col.dot}"></div>
+        <span class="col-name">${col.label}</span>
+        <span class="col-count">${colTasks.length}</span>
+      </div>
+      <div class="col-body" style="background:${col.bg}20">
+        ${colTasks.map(cardHTML).join('') || '<div style="padding:12px;text-align:center;font-size:11px;color:var(--muted);font-family:var(--mono)">empty</div>'}
+      </div>`;
+    board.appendChild(colEl);
+  });
+  c.appendChild(board);
+  renderStats(ft);
+}
+
+function cardHTML(t) {
+  const due = formatDue(t.due, t.status);
+  const tagClass = DEPT_TAGS[t.dept] || 'tag-default';
+  const notesSnippet = (t.notes || '').slice(0, 80);
+  return `
+    <div class="card">
+      <div class="card-top">
+        <div class="priority-dot" style="background:${PRIORITY_COLORS[t.priority] || '#94a3b8'}" title="${t.priority || ''} priority"></div>
+        <span class="card-title"><span class="id-tag">#${t.id}</span>${t.title}</span>
+      </div>
+      <div class="card-meta">
+        ${t.dept ? `<span class="tag ${tagClass}">${t.dept}</span>` : ''}
+        ${t.workstream ? `<span class="tag tag-ws">${t.workstream}</span>` : ''}
+        ${t.size ? `<span class="tag tag-size">${t.size}</span>` : ''}
+      </div>
+      ${t.blockedBy ? `<div class="blocked-by">Blocked by #${t.blockedBy}</div>` : ''}
+      ${notesSnippet ? `<div class="notes-snippet">${notesSnippet}${t.notes.length > 80 ? '…' : ''}</div>` : ''}
+      <div class="card-footer" style="margin-top:8px">
+        <div class="owner">
+          <div class="avatar" style="background:${avatarColor(t.owner)}">${initials(t.owner)}</div>
+          <span class="owner-name">${(t.owner || '').split(' ')[0]}</span>
+        </div>
+        ${due ? `<span class="due${due.overdue?' overdue':''}">${due.text}</span>` : ''}
+      </div>
+    </div>`;
+}
+
+function renderStats(ft) {
+  const total = ft.length;
+  const done = ft.filter(t => t.status === 'Done').length;
+  const blocked = ft.filter(t => t.status === 'Blocked').length;
+  const overdue = ft.filter(t => isOverdue(t.due, t.status)).length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  document.getElementById('stats-bar').innerHTML = `
+    <div class="stat"><b>${total}</b> tasks</div>
+    <div class="stat"><b style="color:#16a34a">${done}</b> done (${pct}%)</div>
+    <div class="stat"><b style="color:#ef4444">${blocked}</b> blocked</div>
+    <div class="stat"><b style="color:#f59e0b">${overdue}</b> overdue</div>`;
+}
+
+async function loadTasks() {
+  if (SHEET_CSV_URL.includes('YOUR_PUBLISHED_CSV_URL_HERE')) {
+    document.getElementById('board-container').innerHTML = `
+      <div class="config-banner">
+        <b>⚙️ Setup needed</b><br><br>
+        Edit this HTML file and replace <code>YOUR_PUBLISHED_CSV_URL_HERE</code> at the top of the &lt;script&gt; block with your published Google Sheet CSV URL.<br><br>
+        <b>How to get the URL:</b><br>
+        1. Open the Google Sheet<br>
+        2. File → Share → Publish to web<br>
+        3. Choose "Tasks" sheet, format = CSV<br>
+        4. Click Publish, copy the URL it gives you<br>
+        5. Paste it into this file at the top of the script section
+      </div>`;
+    return;
+  }
+  try {
+    const res = await fetch(SHEET_CSV_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    const rows = parseCSV(text);
+    allTasks = rowsToTasks(rows);
+    populateFilters();
+    renderBoard();
+    if (SHEET_VIEW_URL && !SHEET_VIEW_URL.includes('YOUR_')) {
+      document.getElementById('sheet-link').href = SHEET_VIEW_URL;
+    }
+  } catch (err) {
+    document.getElementById('board-container').innerHTML = `
+      <div class="error-msg">
+        <b>Couldn't load tasks</b>
+        ${err.message}<br><br>
+        Check that the sheet is published to web and the URL is correct.
+      </div>`;
+  }
+}
+
+loadTasks();
+</script>
+</body>
+</html>
